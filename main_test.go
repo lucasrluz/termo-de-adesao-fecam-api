@@ -15,9 +15,9 @@ func TestPostUsuario(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	exampleUser := Solicitacao{
+	exampleUser := SolicitacaoDTO{
 		Entidade:              "Exemplo Entidade",
-		Sistemas:              "Exemplo Sistemas",
+		Sistemas:              []uint{1},
 		RepresentanteNome:     "João da Silva",
 		RepresentanteCPF:      "123.456.789-00",
 		RepresentanteCargo:    "Gerente",

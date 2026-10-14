@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"termo-de-adesao-fecam-api/models"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
@@ -11,10 +12,9 @@ import (
 	"gorm.io/gorm"
 )
 
-type Solicitacao struct {
-	gorm.Model
+type SolicitacaoDTO struct {
 	Entidade              string `json:"entidade"`
-	Sistemas              string `json:"sistemas"`
+	Sistemas              []uint `json:"sistemas"`
 	RepresentanteNome     string `json:"representante_nome"`
 	RepresentanteCPF      string `json:"representante_cpf"`
 	RepresentanteCargo    string `json:"representante_cargo"`
@@ -47,7 +47,7 @@ func setupDB() *gorm.DB {
 		panic("failed to connect to database")
 	}
 
-	db.AutoMigrate(&Solicitacao{})
+	db.AutoMigrate(&models.Solicitacao{})
 
 	return db
 }
@@ -57,14 +57,35 @@ func setupRouter() *gin.Engine {
 	db := setupDB()
 
 	router.POST("/api/solicitacao", func(c *gin.Context) {
-		var solicitacao Solicitacao
+		var solicitacao SolicitacaoDTO
 
 		if err := c.ShouldBindJSON(&solicitacao); err != nil {
 			c.JSON(400, gin.H{"error": err.Error()})
 			return
 		}
 
-		db.Create(&solicitacao)
+		solicitacaoModel := models.Solicitacao{
+			Status:                models.StatusPendente,
+			Entidade:              solicitacao.Entidade,
+			RepresentanteNome:     solicitacao.RepresentanteNome,
+			RepresentanteCPF:      solicitacao.RepresentanteCPF,
+			RepresentanteCargo:    solicitacao.RepresentanteCargo,
+			RepresentanteEmail:    solicitacao.RepresentanteEmail,
+			RepresentanteTelefone: solicitacao.RepresentanteTelefone,
+			ResponsavelNome:       solicitacao.ResponsavelNome,
+			ResponsavelCPF:        solicitacao.ResponsavelCPF,
+			ResponsavelCargo:      solicitacao.ResponsavelCargo,
+			ResponsavelEmail:      solicitacao.ResponsavelEmail,
+			ResponsavelTelefone:   solicitacao.ResponsavelTelefone,
+		}
+
+		for _, id := range solicitacao.Sistemas {
+			solicitacaoModel.Servicos = append(solicitacaoModel.Servicos, models.Servico{
+				IDServico: id,
+			})
+		}
+
+		db.Create(&solicitacaoModel)
 
 		c.JSON(201, solicitacao)
 	})
