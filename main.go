@@ -52,9 +52,8 @@ func setupDB() *gorm.DB {
 	return db
 }
 
-func setupRouter() *gin.Engine {
+func setupRouter(db *gorm.DB) *gin.Engine {
 	router := gin.Default()
-	db := setupDB()
 
 	router.POST("/api/solicitacao", func(c *gin.Context) {
 		var solicitacao SolicitacaoDTO
@@ -94,6 +93,7 @@ func setupRouter() *gin.Engine {
 }
 
 func main() {
-	router := setupRouter()
+	db := setupDB()
+	router := setupRouter(db)
 	router.Run(":8080")
 }

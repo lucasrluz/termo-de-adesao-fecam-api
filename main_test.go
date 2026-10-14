@@ -2,17 +2,42 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/go-playground/assert/v2"
+	"gorm.io/gorm"
 )
 
-func TestPostUsuario(t *testing.T) {
-	router := setupRouter()
+var (
+	testDB     *gorm.DB
+	testRouter *gin.Engine
+)
 
+func truncateAll(db *gorm.DB) error {
+	return db.Exec(`TRUNCATE TABLE tb_solicitacao, tb_servico, tb_solicitacao_servicos RESTART IDENTITY CASCADE`).Error
+}
+
+func TestMain(m *testing.M) {
+	gin.SetMode(gin.TestMode)
+
+	testDB = setupDB()
+
+	if err := truncateAll(testDB); err != nil {
+		log.Fatalf("falha ao limpar o banco: %v", err)
+	}
+
+	testRouter = setupRouter(testDB)
+
+	os.Exit(m.Run())
+}
+
+func TestPostUsuario(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	exampleUser := SolicitacaoDTO{
@@ -32,7 +57,7 @@ func TestPostUsuario(t *testing.T) {
 
 	userJson, _ := json.Marshal(exampleUser)
 	req, _ := http.NewRequest("POST", "/api/solicitacao", strings.NewReader(string(userJson)))
-	router.ServeHTTP(w, req)
+	testRouter.ServeHTTP(w, req)
 
 	assert.Equal(t, 201, w.Code)
 }
