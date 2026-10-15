@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"termo-de-adesao-fecam-api/models"
 
@@ -25,6 +26,24 @@ type SolicitacaoDTO struct {
 	ResponsavelCargo      string `json:"responsavel_cargo"`
 	ResponsavelEmail      string `json:"responsavel_email"`
 	ResponsavelTelefone   string `json:"responsavel_telefone"`
+}
+
+type GetSolicitacaoDTO struct {
+	ID                    uint     `json:"id"`
+	Status                string   `json:"status"`
+	Entidade              string   `json:"entidade"`
+	Sistemas              []string `json:"sistemas"`
+	RepresentanteNome     string   `json:"representante_nome"`
+	RepresentanteCPF      string   `json:"representante_cpf"`
+	RepresentanteCargo    string   `json:"representante_cargo"`
+	RepresentanteEmail    string   `json:"representante_email"`
+	RepresentanteTelefone string   `json:"representante_telefone"`
+	ResponsavelNome       string   `json:"responsavel_nome"`
+	ResponsavelCPF        string   `json:"responsavel_cpf"`
+	ResponsavelCargo      string   `json:"responsavel_cargo"`
+	ResponsavelEmail      string   `json:"responsavel_email"`
+	ResponsavelTelefone   string   `json:"responsavel_telefone"`
+	DataDeAbertura        string   `json:"data_de_abertura"`
 }
 
 func setupDB() *gorm.DB {
@@ -50,6 +69,31 @@ func setupDB() *gorm.DB {
 	db.AutoMigrate(&models.Solicitacao{})
 
 	return db
+}
+
+func ToGetSolicitacaoDTO(s models.Solicitacao) GetSolicitacaoDTO {
+	sistemas := make([]string, 0, len(s.Servicos)) // [] em vez de null no JSON
+	for _, sv := range s.Servicos {
+		sistemas = append(sistemas, sv.Nome)
+	}
+
+	return GetSolicitacaoDTO{
+		ID:                    s.IDSolicitacao,
+		Status:                string(s.Status),
+		Entidade:              s.Entidade,
+		Sistemas:              sistemas,
+		RepresentanteNome:     s.RepresentanteNome,
+		RepresentanteCPF:      s.RepresentanteCPF,
+		RepresentanteCargo:    s.RepresentanteCargo,
+		RepresentanteEmail:    s.RepresentanteEmail,
+		RepresentanteTelefone: s.RepresentanteTelefone,
+		ResponsavelNome:       s.ResponsavelNome,
+		ResponsavelCPF:        s.ResponsavelCPF,
+		ResponsavelCargo:      s.ResponsavelCargo,
+		ResponsavelEmail:      s.ResponsavelEmail,
+		ResponsavelTelefone:   s.ResponsavelTelefone,
+		DataDeAbertura:        s.CreatedAt.Format("02/01/2006"),
+	}
 }
 
 func setupRouter(db *gorm.DB) *gin.Engine {
@@ -87,6 +131,29 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 		db.Create(&solicitacaoModel)
 
 		c.JSON(201, solicitacao)
+	})
+
+	router.GET("/api/solicitacao", func(c *gin.Context) {
+		var solicitacoes []models.Solicitacao
+
+		query := db.Preload("Servicos").Order("created_at DESC")
+
+		// filtro opcional: GET /solicitacoes?status=pendente
+		if status := c.Query("status"); status != "" {
+			query = query.Where("status = ?", status)
+		}
+
+		if err := query.Find(&solicitacoes).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"erro": "erro ao buscar solicitações"})
+			return
+		}
+
+		resposta := make([]GetSolicitacaoDTO, 0, len(solicitacoes))
+		for _, s := range solicitacoes {
+			resposta = append(resposta, ToGetSolicitacaoDTO(s))
+		}
+
+		c.JSON(http.StatusOK, resposta)
 	})
 
 	return router
